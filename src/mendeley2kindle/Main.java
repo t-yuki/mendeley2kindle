@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package mendeley2kindle;
 
@@ -13,8 +13,13 @@ public class Main {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		// TODO 自動生成されたメソッド・スタブ
+		Mendeley2Kindle core = new Mendeley2Kindle();
+		core.setDatabasePath("");
+		core.setKindleDocumentsPath("");
+		core.setKindleHome("J:/");
 
+		MainUIFrame ui = new MainUIFrame(core);
+		ui.setVisible(true);
 	}
 
 }
