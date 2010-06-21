@@ -33,7 +33,7 @@ public class Mendeley2Kindle {
 		kindle = new KindleDAO();
 		mendeley = new MendeleyDAO();
 		try {
-			kindle.open("./");
+			kindle.open("kindle.root/");
 			mendeley.open("mendeley2.sqlite");
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -62,6 +62,8 @@ public class Mendeley2Kindle {
 				Collection<MFile> added = new ArrayList<MFile>();
 				Collection<MFile> updated = new ArrayList<MFile>();
 
+				if (!kindle.hasKCollection(col.getName()))
+					kindle.createKCollection(col.getName());
 				Collection<KFile> kFiles = kindle.listFiles(col.getName());
 				Collection<MFile> mFiles = mendeley.findFilesByCollection(col);
 				Collection<String> msFiles = new ArrayList<String>();
@@ -85,12 +87,14 @@ public class Mendeley2Kindle {
 				}
 
 				for (MFile mf : added) {
+					kindle.saveFile(mf, exportHighlights);
 					kindle.addFileToCollection(col.getName(), mf);
 				}
 				for (MFile mf : updated) {
+					kindle.saveFile(mf, exportHighlights);
 					kindle.addFileToCollection(col.getName(), mf);
 				}
-				for (KFile kFile  : removed) {
+				for (KFile kFile : removed) {
 					kindle.removeFile(col.getName(), kFile);
 				}
 			} catch (SQLException e) {
@@ -98,15 +102,29 @@ public class Mendeley2Kindle {
 			} catch (URISyntaxException e) {
 				e.printStackTrace();
 				assert false;
+			} catch (JSONException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
-		for (KFile kFile  : globalRemoved) {
-			MFile mf = mendeley.findFileByHash("");
-			if (mf != null && syncAllDocuments)
-				continue;
-			Collection<String> kCols = kindle.findCollectionsByFile(kFile);
+		for (KFile kFile : globalRemoved) {
+			MFile mf;
+			try {
+				mf = mendeley.findFileByHash(kFile.getHash());
+				if (mf != null && syncAllDocuments)
+					continue;
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			Collection<String> kCols = kindle.findKCollectionsByFile(kFile);
 			if (kCols.size() == 0 && removeOrphanedFile)
 				kindle.removeFile(kFile);
+		}
+		try {
+			kindle.commit();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 

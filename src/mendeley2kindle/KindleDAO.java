@@ -109,6 +109,16 @@ public class KindleDAO {
 	}
 
 	public void removeFile(KFile file) {
+		log.log(Level.FINER, "Removing a document:" + file.getName()
+				+ " from your kindle");
+		String path = toKindleLocalPath(file);
+		File f = new File(path);
+		if (f.exists()) {
+			log.log(Level.FINE, "Removed a document:" + f);
+			f.delete();
+		} else {
+			log.log(Level.FINE, "File not found:" + f);
+		}
 	}
 
 	public boolean hasKCollection(String collection) {
@@ -134,6 +144,24 @@ public class KindleDAO {
 	}
 
 	public void removeFile(String collection, KFile file) {
+		log.log(Level.FINER, "Removing a document:" + file.getName()
+				+ " from the collection: " + collection);
+		String path = toKindlePath(file);
+		String khash = toKindleHash(path);
+		String key = collection + KINDLE_LOCALE;
+		try {
+			JSONArray items = collections.getJSONObject(key).getJSONArray(
+					"items");
+			for (int i = 0; i < items.length(); i++) {
+				if (khash.equals(items.get(i))) {
+					items.remove(i);
+				}
+			}
+			log.log(Level.FINE, "Removed a document:" + file.getName()
+					+ " to the collection: " + collection);
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void saveFile(MFile file, boolean exportHighlights)
@@ -148,7 +176,7 @@ public class KindleDAO {
 			return;
 		}
 
-		f2.mkdirs();
+		f2.getParentFile().mkdirs();
 		FileOutputStream fos = new FileOutputStream(f2);
 
 		byte[] buf = new byte[4096];
@@ -187,6 +215,8 @@ public class KindleDAO {
 	public Collection<KFile> listFiles(String collection) {
 		String key = collection + KINDLE_LOCALE;
 		try {
+			if (collections.isNull(key))
+				return null;
 			JSONArray items = collections.getJSONObject(key).getJSONArray(
 					"items");
 			Set<String> khashes = new HashSet<String>(items.length());
@@ -197,7 +227,8 @@ public class KindleDAO {
 			List<KFile> list = new ArrayList<KFile>(items.length());
 
 			File documents = new File(kindleLocal + KINDLE_DOCUMENTS);
-			listFilesRecursive(list, khashes, documents);
+			if (documents.exists())
+				listFilesRecursive(list, khashes, documents);
 			return list;
 		} catch (JSONException e) {
 			e.printStackTrace();
@@ -212,13 +243,11 @@ public class KindleDAO {
 				listFilesRecursive(list, khashes, file);
 				continue;
 			}
-			String parent = file.getParent();
-			String path = KINDLE_ROOT + KINDLE_DOCUMENTS
-					+ new File(parent, file.getName());
-			if (khashes.contains(toKindleHash(path))) {
-				KFile kf = new KFile();
-				kf.setHash(parent);
-				kf.setName(file.getName());
+			KFile kf = new KFile();
+			kf.setHash(file.getParent());
+			kf.setName(file.getName());
+
+			if (khashes.contains(toKindleHash(toKindleLocalPath(kf)))) {
 				list.add(kf);
 			}
 		}

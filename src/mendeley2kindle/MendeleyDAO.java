@@ -26,9 +26,12 @@ public class MendeleyDAO {
 	Connection conn;
 
 	public void open(String ds) throws SQLException {
-		// Class.forName("org.sqlite.JDBC");
+		try {
+			Class.forName("org.sqlite.JDBC");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
 		conn = DriverManager.getConnection("jdbc:sqlite:" + ds);
-		System.out.println(conn);
 	}
 
 	public Collection<MCollection> findCollections() throws SQLException {
@@ -45,6 +48,22 @@ public class MendeleyDAO {
 		rs.close();
 		ps.close();
 		return list;
+	}
+
+	public MCollection findCollectionByName(String name) throws SQLException {
+		PreparedStatement ps = conn
+				.prepareStatement("SELECT fd.id, fd.name FROM Folders fd WHERE fd.name = ?");
+		ps.setString(1, name);
+
+		ResultSet rs = ps.executeQuery();
+		MCollection col = null;
+		while (rs.next()) {
+			int id = rs.getInt(1);
+			col = new MCollection(id, name);
+		}
+		rs.close();
+		ps.close();
+		return col;
 	}
 
 	public Collection<MFile> findFilesByCollection(MCollection col)
@@ -108,7 +127,5 @@ public class MendeleyDAO {
 		rs.close();
 		ps.close();
 		return m;
-
 	}
-
 }
