@@ -25,31 +25,15 @@ public class Mendeley2Kindle {
 	private KindleDAO kindle;
 	private MendeleyDAO mendeley;
 
-	private String databasePath;
-	private String kindleHome;
-	private String kindleDocumentsPath;
-
 	public Mendeley2Kindle() {
-		kindle = new KindleDAO();
-		mendeley = new MendeleyDAO();
-		try {
-			kindle.open("kindle.root/");
-			mendeley.open("mendeley2.sqlite");
-		} catch (SQLException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
 	}
 
-	public KindleDAO getKindle() {
-		return kindle;
+	public void setKindleDAO(KindleDAO kindle) {
+		this.kindle = kindle;
 	}
 
-	public MendeleyDAO getMendeley() {
-		return mendeley;
+	public void setMendeleyDAO(MendeleyDAO mendeley) {
+		this.mendeley = mendeley;
 	}
 
 	public void syncCollections(Collection<MCollection> collections,
@@ -65,9 +49,11 @@ public class Mendeley2Kindle {
 				if (!kindle.hasKCollection(col.getName()))
 					kindle.createKCollection(col.getName());
 				Collection<KFile> kFiles = kindle.listFiles(col.getName());
-				Collection<MFile> mFiles = mendeley.findFilesByCollection(col);
+				Collection<MFile> mFiles = mendeley.findFilesByCollection(col
+						.getId());
 				Collection<String> msFiles = new ArrayList<String>();
 
+				// Find updated/added/removed documents
 				for (MFile mf : mFiles) {
 					String url = mf.getLocalUrl();
 					File f = new File(new URI(url));
@@ -86,13 +72,13 @@ public class Mendeley2Kindle {
 					}
 				}
 
+				// do action
 				for (MFile mf : added) {
 					kindle.saveFile(mf, exportHighlights);
 					kindle.addFileToCollection(col.getName(), mf);
 				}
 				for (MFile mf : updated) {
 					kindle.saveFile(mf, exportHighlights);
-					kindle.addFileToCollection(col.getName(), mf);
 				}
 				for (KFile kFile : removed) {
 					kindle.removeFile(col.getName(), kFile);
@@ -108,6 +94,8 @@ public class Mendeley2Kindle {
 				e.printStackTrace();
 			}
 		}
+
+		// remove from kindle if the file is removed from mendeley db
 		for (KFile kFile : globalRemoved) {
 			MFile mf;
 			try {
@@ -126,17 +114,5 @@ public class Mendeley2Kindle {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-
-	public void setDatabasePath(String databasePath) {
-		this.databasePath = databasePath;
-	}
-
-	public void setKindleDocumentsPath(String kindleDocumentsPath) {
-		this.kindleDocumentsPath = kindleDocumentsPath;
-	}
-
-	public void setKindleHome(String kindleHome) {
-		this.kindleHome = kindleHome;
 	}
 }

@@ -7,7 +7,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.LogManager;
-import java.util.logging.Logger;
+
+import javax.swing.UIManager;
 
 import mendeley2kindle.model.MCollection;
 
@@ -27,19 +28,30 @@ public class Main {
 			LogManager.getLogManager().readConfiguration(in);
 			in.close();
 
-			Logger log = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
-			log.fine("test");
 			Mendeley2Kindle core = new Mendeley2Kindle();
-			core.setDatabasePath("");
-			core.setKindleDocumentsPath("");
-			core.setKindleHome("J:/");
+			KindleDAO kindle = new KindleDAO();
+			MendeleyDAO mendeley = new MendeleyDAO();
 
-			MainUIFrame ui = new MainUIFrame(core);
+			try {
+				// kindle.open("kindle.root/");
+				// mendeley.open("mendeley2.sqlite");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			core.setKindleDAO(kindle);
+			core.setMendeleyDAO(mendeley);
+
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+			MainUIFrame ui = new MainUIFrame();
+			ui.setCore(core);
+			ui.setKindleDAO(kindle);
+			ui.setMendeleyDAO(mendeley);
 			ui.setVisible(true);
 
-			List<MCollection> list = new ArrayList<MCollection>();
-			list.add(core.getMendeley().findCollectionByName("Active1"));
-			core.syncCollections(list, false, true, false);
+			//List<MCollection> list = new ArrayList<MCollection>();
+			//list.add(mendeley.findCollectionByName("Active1"));
+			//core.syncCollections(list, false, true, false);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

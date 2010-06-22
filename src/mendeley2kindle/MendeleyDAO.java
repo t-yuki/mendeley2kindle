@@ -12,8 +12,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.logging.Logger;
 
 import mendeley2kindle.model.MCollection;
 import mendeley2kindle.model.MFile;
@@ -23,6 +23,10 @@ import mendeley2kindle.model.MFile;
  *
  */
 public class MendeleyDAO {
+	private static final Logger log = Logger.getLogger(MendeleyDAO.class
+			.getName());
+
+	boolean isOpened;
 	Connection conn;
 
 	public void open(String ds) throws SQLException {
@@ -32,9 +36,14 @@ public class MendeleyDAO {
 			e.printStackTrace();
 		}
 		conn = DriverManager.getConnection("jdbc:sqlite:" + ds);
+		isOpened = true;
 	}
 
-	public Collection<MCollection> findCollections() throws SQLException {
+	public boolean isOpened() {
+		return isOpened;
+	}
+
+	public List<MCollection> findCollections() throws SQLException {
 		PreparedStatement ps = conn
 				.prepareStatement("SELECT fd.id, fd.name FROM Folders fd ");
 
@@ -66,8 +75,7 @@ public class MendeleyDAO {
 		return col;
 	}
 
-	public Collection<MFile> findFilesByCollection(MCollection col)
-			throws SQLException {
+	public List<MFile> findFilesByCollection(int id) throws SQLException {
 		PreparedStatement ps = conn
 				.prepareStatement("SELECT fl.hash, fl.localUrl "
 						+ "FROM Files fl "
@@ -75,7 +83,7 @@ public class MendeleyDAO {
 						+ "JOIN DocumentFolders dfd ON dfl.documentId = dfd.documentId "
 						+ "JOIN Folders fd ON fd.id = dfd.folderId "
 						+ "WHERE fd.id = ?");
-		ps.setInt(1, col.getId());
+		ps.setInt(1, id);
 		ResultSet rs = ps.executeQuery();
 
 		List<MFile> list = new ArrayList<MFile>();
@@ -90,6 +98,8 @@ public class MendeleyDAO {
 				if (!f.canRead())
 					continue;
 			} catch (URISyntaxException e) {
+				log.warning("Can't parse localUrl:" + url);
+				continue;
 			}
 			MFile m = new MFile();
 			m.setHash(hash);

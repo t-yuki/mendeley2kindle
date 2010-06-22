@@ -9,12 +9,13 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -42,30 +43,50 @@ public class KindleDAO {
 	private static final Logger log = Logger.getLogger(KindleDAO.class
 			.getName());
 
+	private boolean isOpened;
 	private String kindleLocal;
 	private JSONObject collections;
 
 	public void open(String kindleLocal) throws IOException, JSONException {
 		this.kindleLocal = kindleLocal;
-		File path = new File(kindleLocal);
-		log.log(Level.FINER, "Loading: " + path);
-		FileReader fr = new FileReader(new File(path, KINDLE_COLLECTIONS_JSON));
-		StringBuilder sb = new StringBuilder();
-		char[] buf1 = new char[2048];
-		for (int read = 0; (read = fr.read(buf1)) > 0;)
-			sb.append(buf1, 0, read);
 
-		collections = new JSONObject(sb.toString());
-		log.log(Level.FINE, "Loaded kindle collections: " + path);
+		File path = new File(kindleLocal);
+		File file = new File(path, KINDLE_COLLECTIONS_JSON);
+		log.log(Level.FINER, "Loading collections data: " + file);
+		if (file.exists() && file.canRead()) {
+			FileReader fr = new FileReader(file);
+			StringBuilder sb = new StringBuilder();
+			char[] buf1 = new char[2048];
+			for (int read = 0; (read = fr.read(buf1)) > 0;)
+				sb.append(buf1, 0, read);
+
+			collections = new JSONObject(sb.toString());
+			log.log(Level.FINE, "Loaded kindle collections: " + path);
+		} else {
+			log.log(Level.FINE, "Kindle collections data " + file
+					+ " not found. Creating...");
+			collections = new JSONObject();
+		}
+		isOpened = true;
+	}
+
+	public boolean isOpened() {
+		return isOpened;
 	}
 
 	public void commit() throws IOException {
 		File path = new File(kindleLocal);
-		log.log(Level.FINER, "writing: " + path);
-		FileWriter fw = new FileWriter(new File(path, KINDLE_COLLECTIONS_JSON));
-		fw.write(collections.toString());
-		fw.close();
-		log.log(Level.FINE, "Saved kindle collections: " + path);
+		File file = new File(path, KINDLE_COLLECTIONS_JSON);
+		log.log(Level.FINER, "writing collections data: " + file);
+		if (!file.exists() || file.canWrite()) {
+			FileWriter fw = new FileWriter(file);
+			fw.write(collections.toString());
+			fw.close();
+			log.log(Level.FINE, "Saved kindle collections: " + file);
+		} else {
+			log.log(Level.SEVERE,
+					"CANNOT write Kindle collections data. Aborting..." + file);
+		}
 	}
 
 	public void createKCollection(String collection) throws JSONException {
@@ -83,7 +104,7 @@ public class KindleDAO {
 	}
 
 	@SuppressWarnings("unchecked")
-	public Collection<String> findKCollectionsByFile(KFile file) {
+	public List<String> findKCollectionsByFile(KFile file) {
 		String path = toKindlePath(file);
 		String khash = toKindleHash(path);
 		List<String> list = new ArrayList<String>();
@@ -103,9 +124,6 @@ public class KindleDAO {
 		} catch (JSONException e) {
 		}
 		return list;
-	}
-
-	public void removeKCollection(String collection, boolean removeOrphanedFile) {
 	}
 
 	public void removeFile(KFile file) {
@@ -193,8 +211,8 @@ public class KindleDAO {
 		log.log(Level.FINER, "Adding a document:" + f.getLocalUrl()
 				+ " to the collection: " + collection);
 		if (hasFile(collection, f)) {
-			log.log(Level.FINE, "The document:" + f.getLocalUrl()
-					+ " already added to the collection: " + collection);
+			log.log(Level.FINE, "Already exists in the collection "
+					+ collection + ":" + f.getLocalUrl());
 			return;
 		}
 		String path = toKindlePath(f);
@@ -212,7 +230,7 @@ public class KindleDAO {
 		}
 	}
 
-	public Collection<KFile> listFiles(String collection) {
+	public List<KFile> listFiles(String collection) {
 		String key = collection + KINDLE_LOCALE;
 		try {
 			if (collections.isNull(key))
@@ -226,7 +244,7 @@ public class KindleDAO {
 			}
 			List<KFile> list = new ArrayList<KFile>(items.length());
 
-			File documents = new File(kindleLocal + KINDLE_DOCUMENTS);
+			File documents = new File(kindleLocal, KINDLE_DOCUMENTS);
 			if (documents.exists())
 				listFilesRecursive(list, khashes, documents);
 			return list;
@@ -259,35 +277,48 @@ public class KindleDAO {
 			md = MessageDigest.getInstance("SHA-1");
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
+			assert false;
 			return null;
 		}
 		byte[] sha1bin = md.digest(kindlePath.getBytes());
-		return bytes2hex(sha1bin);
+		return "*" + bytes2hex(sha1bin);
 	}
 
 	private String toKindleLocalPath(MFile file) {
 		File f = new File(file.getLocalUrl());
-		String path = kindleLocal + KINDLE_DOCUMENTS
-				+ new File(file.getHash(), f.getName());
+		String name;
+		try {
+			name = URLDecoder.decode(f.getName(), "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException(e);
+		}
+		String path = new File(kindleLocal).getPath() + "/" + KINDLE_DOCUMENTS
+				+ new File(file.getHash(), name);
 		return path;
 	}
 
 	private String toKindlePath(MFile file) {
 		File f = new File(file.getLocalUrl());
-		String path = KINDLE_ROOT + KINDLE_DOCUMENTS
-				+ new File(file.getHash(), f.getName());
+		String name;
+		try {
+			name = URLDecoder.decode(f.getName(), "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException(e);
+		}
+		String path = KINDLE_ROOT + KINDLE_DOCUMENTS + file.getHash() + "/"
+				+ name;
 		return path;
 	}
 
 	private String toKindleLocalPath(KFile file) {
-		String path = kindleLocal + KINDLE_DOCUMENTS
-				+ new File(file.getHash(), file.getName());
+		String path = new File(kindleLocal).getPath() + "/" + KINDLE_DOCUMENTS
+				+ file.getHash() + "/" + file.getName();
 		return path;
 	}
 
 	private String toKindlePath(KFile file) {
-		String path = KINDLE_ROOT + KINDLE_DOCUMENTS
-				+ new File(file.getHash(), file.getName());
+		String path = KINDLE_ROOT + KINDLE_DOCUMENTS + file.getHash() + "/"
+				+ file.getName();
 		return path;
 	}
 
