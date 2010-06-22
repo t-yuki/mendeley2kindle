@@ -1,5 +1,15 @@
 /**
+ *         Copyright 2010 Yukinari Toyota <xxseyxx@gmail.com>
  *
+ *         Licensed under the Apache License, Version 2.0 (the "License"); you
+ *         may not use this file except in compliance with the License. You may
+ *         obtain a copy of the License at
+ *         http://www.apache.org/licenses/LICENSE-2.0 Unless required by
+ *         applicable law or agreed to in writing, software distributed under
+ *         the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ *         CONDITIONS OF ANY KIND, either express or implied. See the License
+ *         for the specific language governing permissions and limitations under
+ *         the License.
  */
 package mendeley2kindle;
 
@@ -21,6 +31,7 @@ import javax.swing.AbstractListModel;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -28,6 +39,7 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 import javax.swing.ListModel;
 import javax.swing.SwingUtilities;
@@ -40,7 +52,7 @@ import mendeley2kindle.model.MCollection;
 import org.json.JSONException;
 
 /**
- * @author sey
+ * @author Yukinari Toyota <xxseyxx@gmail.com>
  *
  */
 public class MainUIFrame extends JFrame {
@@ -192,6 +204,21 @@ public class MainUIFrame extends JFrame {
 		fileMenu.add(selectKindleMenuItem);
 		fileMenu.add(exitMenuItem);
 		menuBar.add(fileMenu);
+
+		JMenu helpMenu = new JMenu("Help");
+		JMenuItem aboutMenuItem = new JMenuItem("About");
+		aboutMenuItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String text = "Mendeley2Kindle 0.1\n"
+						+ " by Yukinari Toyota <xxseyxx@gmail.com>\n"
+						+ " http://sites.google.com/site/xxseyxx/";
+				JOptionPane.showMessageDialog(MainUIFrame.this, text);
+			}
+		});
+		helpMenu.add(aboutMenuItem);
+		menuBar.add(helpMenu);
+
 		setJMenuBar(menuBar);
 
 		getContentPane().setLayout(

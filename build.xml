@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Mendeley2Kindle" default="all">
+	<property file="build.properties" />
+
+	<path id="build.classpath">
+		<fileset dir="${build.lib}">
+		</fileset>
+	</path>
+
+	<path id="build.naoji.classpath">
+		<path refid="build.classpath" />
+		<fileset dir="${build.lib}">
+			<include name="${naoji.jar}" />
+		</fileset>
+	</path>
+
+	<target name="all" depends="jar" />
+
+	<target name="clean">
+		<delete dir="${build.home}" />
+		<delete file="${build.jar}" />
+		<mkdir dir="${build.home}" />
+	</target>
+
+	<target name="jar" depends="compile">
+		<jar destfile="${build.jar}" update="no" duplicate="fail">
+			<fileset dir="${build.home}">
+				<include name="**/*.class" />
+				<include name="**/*.java" />
+				<include name="**/*.properties" />
+			</fileset>
+			<manifest>
+				<attribute name="Main-Class" value="mendeley2kindle.Main" />
+			</manifest>
+		</jar>
+	</target>
+
+
+	<target name="compile">
+		<mkdir dir="${build.home}" />
+
+		<javac srcdir="${build.src}" destdir="${build.home}" debug="${build.debug}" target="${build.target}" source="${build.source}" optimize="${build.optimize}" encoding="${build.encoding}">
+			<include name="**/*.java" />
+			<classpath>
+				<path refid="build.classpath" />
+			</classpath>
+		</javac>
+
+		<copy todir="${build.home}">
+			<fileset dir="${build.src}">
+				<include name="**/*.*" />
+				<!-- <exclude name="**/*.java" /> -->
+			</fileset>
+			<fileset dir="${basedir}">
+				<include name="README.txt" />
+			</fileset>
+		</copy>
+	</target>
+
+</project>
