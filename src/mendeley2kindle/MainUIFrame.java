@@ -31,7 +31,6 @@ import javax.swing.AbstractListModel;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -56,6 +55,7 @@ import org.json.JSONException;
  *
  */
 public class MainUIFrame extends JFrame {
+	private static final long serialVersionUID = 2040707513660062702L;
 	private KindleDAO kindle;
 	private MendeleyDAO mendeley;
 	private Mendeley2Kindle core;
@@ -65,8 +65,12 @@ public class MainUIFrame extends JFrame {
 
 	class OpenMendeleyListener implements ActionListener {
 		public void actionPerformed(ActionEvent actionevent) {
+			File current = guessMendeleyHome();
+			if (current == null)
+				current = new File(".");
+
 			JFileChooser chooser = new JFileChooser();
-			chooser.setCurrentDirectory(new File("."));
+			chooser.setCurrentDirectory(current);
 			chooser.setDialogTitle("Select your Mendeley database file");
 			chooser.setFileFilter(new FileFilter() {
 				@Override
@@ -89,18 +93,9 @@ public class MainUIFrame extends JFrame {
 
 	class SelectKindleListener implements ActionListener {
 		public void actionPerformed(ActionEvent actionevent) {
-			File current = new File(".");
-
-			FileSystemView fs = FileSystemView.getFileSystemView();
-			Pattern pat = Pattern.compile("^Kindle \\(\\w:\\)$");
-			for (File f : File.listRoots()) {
-				String name = fs.getSystemDisplayName(f);
-				System.out.println(name);
-				if (pat.matcher(name).matches()) {
-					current = f;
-					break;
-				}
-			}
+			File current = guessKindleRoot();
+			if (current == null)
+				current = new File(".");
 
 			JFileChooser chooser = new JFileChooser();
 			chooser.setCurrentDirectory(current);
@@ -123,12 +118,24 @@ public class MainUIFrame extends JFrame {
 
 	class SyncListener implements ActionListener {
 		public void actionPerformed(ActionEvent actionevent) {
-			Object[] values = collectionsJList.getSelectedValues();
-			List<MCollection> collections = new ArrayList<MCollection>(
-					values.length);
-			for (Object o : values)
-				collections.add((MCollection) o);
-			core.syncCollections(collections, false, true, false);
+			final JButton button = (JButton) actionevent.getSource();
+			Thread th = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					String text = button.getText();
+					button.setEnabled(false);
+					button.setText("Exporting...");
+					Object[] values = collectionsJList.getSelectedValues();
+					List<MCollection> collections = new ArrayList<MCollection>(
+							values.length);
+					for (Object o : values)
+						collections.add((MCollection) o);
+					core.syncCollections(collections, false, true, false);
+					button.setText(text);
+					button.setEnabled(true);
+				}
+			});
+			th.start();
 		}
 	}
 
@@ -210,7 +217,7 @@ public class MainUIFrame extends JFrame {
 		aboutMenuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				String text = "Mendeley2Kindle 0.1\n"
+				String text = "Mendeley2Kindle 0.2.1\n"
 						+ " by Yukinari Toyota <xxseyxx@gmail.com>\n"
 						+ " http://sites.google.com/site/xxseyxx/";
 				JOptionPane.showMessageDialog(MainUIFrame.this, text);
@@ -259,8 +266,7 @@ public class MainUIFrame extends JFrame {
 			kindle.open(path.getPath());
 
 			if (kindle.isOpened() && mendeley.isOpened)
-				for (JComponent c : components)
-					c.setEnabled(true);
+				fireEnableComponents();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (JSONException e) {
@@ -288,9 +294,7 @@ public class MainUIFrame extends JFrame {
 			};
 			collectionsJList.setModel(model);
 			if (kindle.isOpened() && mendeley.isOpened)
-				for (JComponent c : components)
-					c.setEnabled(true);
-
+				fireEnableComponents();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -304,4 +308,73 @@ public class MainUIFrame extends JFrame {
 		this.mendeley = mendeley;
 	}
 
+	private void fireEnableComponents() {
+		for (JComponent c : components)
+			c.setEnabled(true);
+		int[] indices = new int[collectionsJList.getModel().getSize()];
+		for (int i = 0; i < collectionsJList.getModel().getSize(); i++)
+			indices[i] = i;
+		collectionsJList.setSelectedIndices(indices);
+	}
+
+	private File guessKindleRoot() {
+		String os = System.getProperty("os.name");
+		if (os.indexOf("Windows") >= 0) {
+			FileSystemView fs = FileSystemView.getFileSystemView();
+			Pattern pat = Pattern.compile("^Kindle \\(\\w:\\)$");
+			for (File f : File.listRoots()) {
+				String name = fs.getSystemDisplayName(f);
+				if (pat.matcher(name).matches()) {
+					return f;
+				}
+			}
+		} else if (os.indexOf("Linux") >= 0) {
+			File f = new File("/media/");
+			return f.isDirectory() ? f : null;
+		} else if (os.indexOf("Mac") >= 0) {
+			File f = new File("/Volumes/Kindle/");
+			return f.isDirectory() ? f : new File("/Volumes/");
+		}
+		return null;
+	}
+
+	private File guessMendeleyHome() {
+		String os = System.getProperty("os.name");
+		String home = System.getProperty("user.home");
+		if (os.indexOf("Windows") >= 0) {
+			String localAppDataPath = System.getenv("LOCALAPPDATA");
+			File localAppData = null;
+			if (localAppDataPath != null) {
+				localAppData = new File(localAppDataPath);
+			}
+			if (localAppDataPath == null || !localAppData.isDirectory()) {
+				localAppData = new File(home,
+						"Local Settings/Application Data/");
+			}
+			if (localAppData.isDirectory()) {
+				File f = new File(localAppData,
+						"Mendeley Ltd/Mendeley Desktop/");
+				if (!f.isDirectory())
+					f = new File(localAppData,
+							"Mendeley Ltd./Mendeley Desktop/");
+				if (f.isDirectory())
+					return f;
+			}
+		} else if (os.indexOf("Linux") >= 0) {
+			File f = new File(home,
+					"/.local/share/data/Mendeley Ltd./Mendeley Desktop/");
+			if (f.isDirectory())
+				return f;
+		} else if (os.indexOf("Mac") >= 0) {
+			File f = new File(home,
+					"Library/Application Support/Mendeley Desktop/");
+			if (f.isDirectory())
+				return f;
+		}
+		return null;
+	}
+
+	private File guessMendeleyDB() {
+		return null;
+	}
 }

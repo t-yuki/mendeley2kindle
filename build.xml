@@ -22,6 +22,20 @@
 		<mkdir dir="${build.home}" />
 	</target>
 
+	<target name="zip" depends="jar">
+		<zip destfile="${build.zip}">
+			<fileset file="${build.jar}" />
+			<fileset file="README.txt" />
+			<fileset file=".project" />
+			<fileset file=".classpath" />
+			<fileset file="build.properties" />
+			<fileset file="build.xml" />
+			<fileset file="sqlitejdbc-v056.jar" />
+			<fileset dir="src" />
+			<fileset dir="json" />
+		</zip>
+	</target>
+
 	<target name="jar" depends="compile">
 		<jar destfile="${build.jar}" update="no" duplicate="fail">
 			<fileset dir="${build.home}">
@@ -31,6 +45,7 @@
 			</fileset>
 			<manifest>
 				<attribute name="Main-Class" value="mendeley2kindle.Main" />
+				<attribute name="Class-Path" value="${lib.sqlitejdbc.jar}" />
 			</manifest>
 		</jar>
 	</target>
