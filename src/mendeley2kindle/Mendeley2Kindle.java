@@ -23,7 +23,9 @@ import java.util.Collection;
 
 import mendeley2kindle.model.KFile;
 import mendeley2kindle.model.MCollection;
+import mendeley2kindle.model.MCondCollection;
 import mendeley2kindle.model.MFile;
+import mendeley2kindle.model.MFolder;
 
 import org.json.JSONException;
 
@@ -33,6 +35,7 @@ import org.json.JSONException;
  */
 public class Mendeley2Kindle {
 	private KindleDAO kindle;
+
 	private MendeleyDAO mendeley;
 
 	public Mendeley2Kindle() {
@@ -59,8 +62,20 @@ public class Mendeley2Kindle {
 				if (!kindle.hasKCollection(col.getName()))
 					kindle.createKCollection(col.getName());
 				Collection<KFile> kFiles = kindle.listFiles(col.getName());
-				Collection<MFile> mFiles = mendeley.findFilesByCollection(col
-						.getId());
+
+				Collection<MFile> mFiles = null;
+
+				if (col instanceof MFolder) {
+					mFiles = mendeley.findFilesByCollection(((MFolder) col)
+							.getId());
+				} else if (col instanceof MCondCollection) {
+					mFiles = mendeley
+							.findFilesByCondition(((MCondCollection) col)
+									.getCondition());
+
+				} else {
+					assert false : col;
+				}
 				Collection<String> msFiles = new ArrayList<String>();
 
 				// Find updated/added/removed documents

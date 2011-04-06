@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import mendeley2kindle.model.MCollection;
+import mendeley2kindle.model.MCondCollection;
 import mendeley2kindle.model.MFile;
+import mendeley2kindle.model.MFolder;
 
 /**
  * @author Yukinari Toyota <xxseyxx@gmail.com>
@@ -37,6 +39,7 @@ public class MendeleyDAO {
 			.getName());
 
 	boolean isOpened;
+
 	Connection conn;
 
 	public void open(String ds) throws SQLException {
@@ -62,23 +65,42 @@ public class MendeleyDAO {
 		while (rs.next()) {
 			int id = rs.getInt(1);
 			String name = rs.getString(2);
-			list.add(new MCollection(id, name));
+			list.add(new MFolder(id, name));
 		}
 		rs.close();
 		ps.close();
+
+		// add Favorites collection (Documents.favourite = 'true')
+		list.add(getFavoritesCollection());
+		// add Needs Review collection?
+		// add My Publications collection?
 		return list;
 	}
 
-	public MCollection findCollectionByName(String name) throws SQLException {
+	public MCondCollection getFavoritesCollection() {
+		return new MCondCollection("Favorites", "favourite = 'true'");
+	}
+
+	public MCondCollection getNeedsReviewCollection() {
+		// return new MConditionalCollection("Favorites", "favourite = 'true'");
+		throw new UnsupportedOperationException();
+	}
+
+	public MCondCollection getMyPublicationsCollection() {
+		// return new MConditionalCollection("Favorites", "favourite = 'true'");
+		throw new UnsupportedOperationException();
+	}
+
+	public MFolder findFolderByName(String name) throws SQLException {
 		PreparedStatement ps = conn
 				.prepareStatement("SELECT fd.id, fd.name FROM Folders fd WHERE fd.name = ?");
 		ps.setString(1, name);
 
 		ResultSet rs = ps.executeQuery();
-		MCollection col = null;
+		MFolder col = null;
 		while (rs.next()) {
 			int id = rs.getInt(1);
-			col = new MCollection(id, name);
+			col = new MFolder(id, name);
 		}
 		rs.close();
 		ps.close();
@@ -94,6 +116,41 @@ public class MendeleyDAO {
 						+ "JOIN Folders fd ON fd.id = dfd.folderId "
 						+ "WHERE fd.id = ?");
 		ps.setInt(1, id);
+		ResultSet rs = ps.executeQuery();
+
+		List<MFile> list = new ArrayList<MFile>();
+		while (rs.next()) {
+			String hash = rs.getString(1);
+			String url = rs.getString(2);
+			if (url.isEmpty())
+				continue;
+			File f;
+			try {
+				f = new File(new URI(url));
+				if (!f.canRead())
+					continue;
+			} catch (URISyntaxException e) {
+				log.warning("Can't parse localUrl:" + url);
+				continue;
+			}
+			MFile m = new MFile();
+			m.setHash(hash);
+			m.setLocalUrl(url);
+			list.add(m);
+		}
+		rs.close();
+		ps.close();
+		return list;
+	}
+
+	public List<MFile> findFilesByCondition(String where) throws SQLException {
+		StringBuilder sql = new StringBuilder("SELECT fl.hash, fl.localUrl "
+				+ "FROM Files fl "
+				+ "JOIN DocumentFiles dfl ON fl.hash = dfl.hash "
+				+ "JOIN Documents ds ON ds.id = dfl.documentId");
+		if (where != null && !where.trim().isEmpty())
+			sql.append(" WHERE ").append(where);
+		PreparedStatement ps = conn.prepareStatement(sql.toString());
 		ResultSet rs = ps.executeQuery();
 
 		List<MFile> list = new ArrayList<MFile>();

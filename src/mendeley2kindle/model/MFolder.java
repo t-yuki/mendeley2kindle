@@ -16,27 +16,22 @@ package mendeley2kindle.model;
 /**
  * @author sey
  *
+ * @version $Id: $
+ *
  */
-public class KFile {
-	private String hash;
-	private String name;
+public class MFolder extends MCollection {
+	private int id;
 
-	public KFile() {
+	public MFolder(int id, String name) {
+		super(name);
+		this.id = id;
 	}
 
-	public String getHash() {
-		return hash;
+	public int getId() {
+		return id;
 	}
 
-	public String getName() {
-		return name;
-	}
-
-	public void setHash(String hash) {
-		this.hash = hash;
-	}
-
-	public void setName(String name) {
-		this.name = name;
+	public void setId(int id) {
+		this.id = id;
 	}
 }

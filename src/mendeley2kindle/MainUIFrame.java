@@ -55,19 +55,26 @@ import org.json.JSONException;
  *
  */
 public class MainUIFrame extends JFrame {
-	private static final long serialVersionUID = 2040707513660062702L;
+	private static final long serialVersionUID = 2040707513660062703L;
+
 	private KindleDAO kindle;
+
 	private MendeleyDAO mendeley;
+
 	private Mendeley2Kindle core;
 
 	private JList collectionsJList;
+
 	private Collection<JComponent> components;
+
+	private JButton mainButton;
 
 	class OpenMendeleyListener implements ActionListener {
 		public void actionPerformed(ActionEvent actionevent) {
 			File current = guessMendeleyHome();
 			if (current == null)
 				current = new File(".");
+			File dbFile = guessMendeleyDB();
 
 			JFileChooser chooser = new JFileChooser();
 			chooser.setCurrentDirectory(current);
@@ -84,6 +91,9 @@ public class MainUIFrame extends JFrame {
 					return "Mendeley Database (*.sqlite)";
 				}
 			});
+			if (dbFile != null)
+				chooser.setSelectedFile(dbFile);
+
 			int ret = chooser.showOpenDialog(MainUIFrame.this);
 			if (ret == JFileChooser.APPROVE_OPTION) {
 				openMendeley(chooser.getSelectedFile());
@@ -217,7 +227,7 @@ public class MainUIFrame extends JFrame {
 		aboutMenuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				String text = "Mendeley2Kindle 0.2.1\n"
+				String text = "Mendeley2Kindle 0.3.0\n"
 						+ " by Yukinari Toyota <xxseyxx@gmail.com>\n"
 						+ " http://sites.google.com/site/xxseyxx/";
 				JOptionPane.showMessageDialog(MainUIFrame.this, text);
@@ -244,12 +254,11 @@ public class MainUIFrame extends JFrame {
 		scroll.getViewport().setView(collectionsJList);
 		getContentPane().add(scroll);
 
-		JButton sync = new JButton("Export to kindle");
-		sync.addActionListener(new SyncListener());
-		getContentPane().add(sync);
+		mainButton = new JButton("Open Mendeley database");
+		mainButton.addActionListener(new OpenMendeleyListener());
+		getContentPane().add(mainButton);
 
 		components.add(collectionsJList);
-		components.add(sync);
 
 		for (JComponent c : components)
 			c.setEnabled(false);
@@ -265,8 +274,18 @@ public class MainUIFrame extends JFrame {
 		try {
 			kindle.open(path.getPath());
 
-			if (kindle.isOpened() && mendeley.isOpened)
-				fireEnableComponents();
+			if (kindle.isOpened()) {
+				mainButton
+						.removeActionListener(mainButton.getActionListeners()[0]);
+				if (mendeley.isOpened()) {
+					fireEnableComponents();
+					mainButton.addActionListener(new SyncListener());
+					mainButton.setText("Export to Kindle");
+				} else {
+					mainButton.addActionListener(new OpenMendeleyListener());
+					mainButton.setText("Open Mendeley databasee");
+				}
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (JSONException e) {
@@ -293,8 +312,18 @@ public class MainUIFrame extends JFrame {
 				}
 			};
 			collectionsJList.setModel(model);
-			if (kindle.isOpened() && mendeley.isOpened)
-				fireEnableComponents();
+			if (mendeley.isOpened) {
+				mainButton
+						.removeActionListener(mainButton.getActionListeners()[0]);
+				if (kindle.isOpened()) {
+					fireEnableComponents();
+					mainButton.addActionListener(new SyncListener());
+					mainButton.setText("Export to Kindle");
+				} else {
+					mainButton.addActionListener(new SelectKindleListener());
+					mainButton.setText("Select Kindle device");
+				}
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

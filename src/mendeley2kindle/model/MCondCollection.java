@@ -16,27 +16,32 @@ package mendeley2kindle.model;
 /**
  * @author sey
  *
+ * @version $Id: $
+ *
  */
-public class KFile {
-	private String hash;
-	private String name;
+public class MCondCollection extends MCollection {
+	private String condition;
 
-	public KFile() {
+	/**
+	 * @param name
+	 */
+	public MCondCollection(String name, String condition) {
+		super(name);
+		this.condition = condition;
 	}
 
-	public String getHash() {
-		return hash;
+	/**
+	 * @return condition
+	 */
+	public String getCondition() {
+		return condition;
 	}
 
-	public String getName() {
-		return name;
-	}
-
-	public void setHash(String hash) {
-		this.hash = hash;
-	}
-
-	public void setName(String name) {
-		this.name = name;
+	/**
+	 * @param condition
+	 *            sets condition
+	 */
+	public void setCondition(String condition) {
+		this.condition = condition;
 	}
 }
