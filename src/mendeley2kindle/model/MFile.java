@@ -20,6 +20,7 @@ package mendeley2kindle.model;
 public class MFile {
 	private String hash;
 	private String localUrl;
+	private String name;
 
 	public MFile() {
 	}
@@ -38,5 +39,13 @@ public class MFile {
 
 	public void setLocalUrl(String localUrl) {
 		this.localUrl = localUrl;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 }

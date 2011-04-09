@@ -13,6 +13,7 @@
  */
 package mendeley2kindle;
 
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -24,11 +25,15 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 import javax.swing.AbstractListModel;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
@@ -40,6 +45,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
+import javax.swing.ListCellRenderer;
 import javax.swing.ListModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.MouseInputAdapter;
@@ -128,24 +134,103 @@ public class MainUIFrame extends JFrame {
 
 	class SyncListener implements ActionListener {
 		public void actionPerformed(ActionEvent actionevent) {
-			final JButton button = (JButton) actionevent.getSource();
 			Thread th = new Thread(new Runnable() {
 				@Override
 				public void run() {
-					String text = button.getText();
-					button.setEnabled(false);
-					button.setText("Exporting...");
 					Object[] values = collectionsJList.getSelectedValues();
 					List<MCollection> collections = new ArrayList<MCollection>(
 							values.length);
 					for (Object o : values)
 						collections.add((MCollection) o);
+					Collections.reverse(collections);
 					core.syncCollections(collections, false, true, false);
-					button.setText(text);
-					button.setEnabled(true);
+
 				}
 			});
 			th.start();
+		}
+	}
+
+	class UISyncStateListener implements SyncStateListener {
+		private String prevText;
+		private String colName;
+		private int total;
+		private int count;
+		private int fileCount;
+
+		@Override
+		public void begin(int totalCollections) {
+			count = 0;
+			total = totalCollections;
+			prevText = mainButton.getText();
+			mainButton.setEnabled(false);
+			mainButton.setText("Exporting " + total + " collections.");
+		}
+
+		@Override
+		public void beginCollection(MCollection col) {
+			fileCount = 0;
+			count++;
+			colName = col.getName();
+			mainButton.setText("Exporting " + colName + " (" + count + "/"
+					+ total + ")");
+		}
+
+		@Override
+		public void beginAddFile(String name) {
+			fileCount++;
+			mainButton.setText("Exporting " + colName + " (" + count + "/"
+					+ total + ")" + " progress:" + fileCount);
+		}
+
+		@Override
+		public void beginAddFiles(int size) {
+		}
+
+		@Override
+		public void beginRemoveFile(String name) {
+			mainButton.setText("Exporting " + colName + " (" + count + "/"
+					+ total + ")" + " progress:" + fileCount);
+		}
+
+		@Override
+		public void beginRemoveFiles(int size) {
+		};
+
+		@Override
+		public void beginUpdateFile(String name) {
+			mainButton.setText("Exporting " + colName + " (" + count + "/"
+					+ total + ")" + " progress:" + fileCount);
+		}
+
+		@Override
+		public void beginUpdateFiles(int size) {
+		};
+
+		@Override
+		public void endAddFile() {
+		}
+
+		@Override
+		public void endAddFiles() {
+		}
+
+		@Override
+		public void endCollection() {
+		};
+
+		@Override
+		public void endRemoveFiles(int size) {
+		}
+
+		@Override
+		public void endUpdateFiles(int size) {
+		};
+
+		@Override
+		public void end() {
+			mainButton.setText(prevText);
+			mainButton.setEnabled(true);
 		}
 	}
 
@@ -202,9 +287,50 @@ public class MainUIFrame extends JFrame {
 		}
 	}
 
-	public MainUIFrame() {
+	static class MyCellRenderer extends DefaultListCellRenderer implements
+			ListCellRenderer {
+		static private final ImageIcon recentIcon = new ImageIcon(
+				MainUIFrame.class.getResource("clock.png"));
+		static private final ImageIcon favoritesIcon = new ImageIcon(
+				MainUIFrame.class.getResource("star.png"));
+		static private final ImageIcon needsReviewIcon = new ImageIcon(
+				MainUIFrame.class.getResource("question-red.png"));
+		static private final ImageIcon myPubIcon = new ImageIcon(
+				MainUIFrame.class.getResource("user-white.png"));
+		static private final ImageIcon folderIcon = new ImageIcon(
+				MainUIFrame.class.getResource("folder-open-blue.png"));
+
+		public MyCellRenderer() {
+
+		}
+
+		public Component getListCellRendererComponent(JList list, Object value,
+				int index, boolean isSelected, boolean cellHasFocus) {
+			super.getListCellRendererComponent(list, value, index, isSelected,
+					cellHasFocus);
+			String name = value.toString();
+			if (name.equals("Recently Added")) {
+				setIcon(recentIcon);
+			} else if (name.equals("Favorites")) {
+				setIcon(favoritesIcon);
+			} else if (name.equals("Needs Review")) {
+				setIcon(needsReviewIcon);
+			} else if (name.equals("My Publications")) {
+				setIcon(myPubIcon);
+			} else {
+				setIcon(folderIcon);
+			}
+
+			return this;
+		}
+	}
+
+	public MainUIFrame(Properties config, Mendeley2Kindle core) {
 		super("Mendeley2Kindle");
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+		this.core = core;
+		core.addStateListener(new UISyncStateListener());
 
 		components = new ArrayList<JComponent>();
 
@@ -227,9 +353,11 @@ public class MainUIFrame extends JFrame {
 		aboutMenuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				String text = "Mendeley2Kindle 0.3.0\n"
+				String text = "Mendeley2Kindle 0.3.1\n"
 						+ " by Yukinari Toyota <xxseyxx@gmail.com>\n"
-						+ " http://sites.google.com/site/xxseyxx/";
+						+ " http://sites.google.com/site/xxseyxx/\n"
+						+ "Some Icons by Yusuke Kamiyamane\n"
+						+ "http://p.yusukekamiyamane.com/\n";
 				JOptionPane.showMessageDialog(MainUIFrame.this, text);
 			}
 		});
@@ -247,10 +375,11 @@ public class MainUIFrame extends JFrame {
 		DragSelectionListener mil = new DragSelectionListener();
 		collectionsJList.addMouseMotionListener(mil);
 		collectionsJList.addMouseListener(mil);
+		collectionsJList.setCellRenderer(new MyCellRenderer());
 		// collectionsJList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
 		JScrollPane scroll = new JScrollPane();
-		scroll.setPreferredSize(new Dimension(160, 240));
+		scroll.setPreferredSize(new Dimension(200, 300));
 		scroll.getViewport().setView(collectionsJList);
 		getContentPane().add(scroll);
 
@@ -264,10 +393,6 @@ public class MainUIFrame extends JFrame {
 			c.setEnabled(false);
 
 		pack();
-	}
-
-	public void setCore(Mendeley2Kindle core) {
-		this.core = core;
 	}
 
 	public void openKindle(File path) {

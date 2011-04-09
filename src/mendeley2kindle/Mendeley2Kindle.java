@@ -20,6 +20,7 @@ import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import mendeley2kindle.model.KFile;
 import mendeley2kindle.model.MCollection;
@@ -34,11 +35,22 @@ import org.json.JSONException;
  *
  */
 public class Mendeley2Kindle {
+	private List<SyncStateListener> listeners;
+
 	private KindleDAO kindle;
 
 	private MendeleyDAO mendeley;
 
 	public Mendeley2Kindle() {
+		listeners = new ArrayList<SyncStateListener>();
+	}
+
+	public void addStateListener(SyncStateListener listener) {
+		listeners.add(listener);
+	}
+
+	public void removeStateListener(SyncStateListener listener) {
+		listeners.remove(listener);
 	}
 
 	public void setKindleDAO(KindleDAO kindle) {
@@ -53,7 +65,11 @@ public class Mendeley2Kindle {
 			boolean syncAllDocuments, boolean removeOrphanedFile,
 			boolean exportHighlights) {
 		Collection<KFile> globalRemoved = new ArrayList<KFile>();
+		for (SyncStateListener l : listeners)
+			l.begin(collections.size());
 		for (MCollection col : collections) {
+			for (SyncStateListener l : listeners)
+				l.beginCollection(col);
 			try {
 				Collection<KFile> removed = new ArrayList<KFile>();
 				Collection<MFile> added = new ArrayList<MFile>();
@@ -98,16 +114,39 @@ public class Mendeley2Kindle {
 				}
 
 				// do action
+				for (SyncStateListener l : listeners)
+					l.beginAddFiles(added.size());
 				for (MFile mf : added) {
+					for (SyncStateListener l : listeners)
+						l.beginAddFile(mf.getName());
 					kindle.saveFile(mf, exportHighlights);
 					kindle.addFileToCollection(col.getName(), mf);
+					for (SyncStateListener l : listeners)
+						l.endAddFile();
 				}
+				for (SyncStateListener l : listeners)
+					l.endAddFiles();
+
+				for (SyncStateListener l : listeners)
+					l.beginUpdateFiles(updated.size());
 				for (MFile mf : updated) {
+					for (SyncStateListener l : listeners)
+						l.beginUpdateFile(mf.getName());
 					kindle.saveFile(mf, exportHighlights);
 				}
+				for (SyncStateListener l : listeners)
+					l.endUpdateFiles(updated.size());
+
+				for (SyncStateListener l : listeners)
+					l.beginRemoveFiles(removed.size());
 				for (KFile kFile : removed) {
+					for (SyncStateListener l : listeners)
+						l.beginRemoveFile(kFile.getName());
 					kindle.removeFile(col.getName(), kFile);
 				}
+				for (SyncStateListener l : listeners)
+					l.endRemoveFiles(removed.size());
+
 			} catch (SQLException e) {
 				e.printStackTrace();
 			} catch (URISyntaxException e) {
@@ -118,6 +157,8 @@ public class Mendeley2Kindle {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			for (SyncStateListener l : listeners)
+				l.endCollection();
 		}
 
 		// remove from kindle if the file is removed from mendeley db
@@ -139,5 +180,7 @@ public class Mendeley2Kindle {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		for (SyncStateListener l : listeners)
+			l.end();
 	}
 }

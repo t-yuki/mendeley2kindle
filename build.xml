@@ -10,7 +10,6 @@
 	<path id="build.naoji.classpath">
 		<path refid="build.classpath" />
 		<fileset dir="${build.lib}">
-			<include name="${naoji.jar}" />
 		</fileset>
 	</path>
 
@@ -42,6 +41,7 @@
 				<include name="**/*.class" />
 				<include name="**/*.java" />
 				<include name="**/*.properties" />
+				<include name="**/*.png" />
 			</fileset>
 			<manifest>
 				<attribute name="Main-Class" value="mendeley2kindle.Main" />

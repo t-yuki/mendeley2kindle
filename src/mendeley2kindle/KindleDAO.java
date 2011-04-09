@@ -89,6 +89,7 @@ public class KindleDAO {
 		File file = new File(path, KINDLE_COLLECTIONS_JSON);
 		log.log(Level.FINER, "writing collections data: " + file);
 		if (!file.exists() || file.canWrite()) {
+			file.getParentFile().mkdirs();
 			FileWriter fw = new FileWriter(file);
 			fw.write(collections.toString());
 			fw.close();

@@ -57,10 +57,17 @@ public class MendeleyDAO {
 	}
 
 	public List<MCollection> findCollections() throws SQLException {
-		PreparedStatement ps = conn
-				.prepareStatement("SELECT fd.id, fd.name FROM Folders fd ");
-
 		List<MCollection> list = new ArrayList<MCollection>();
+		// add Favorites collection (Documents.favourite = 'true')
+		list.add(getFavoritesCollection());
+		// add Needs Review collection?
+		list.add(getNeedsReviewCollection());
+		// add My Publications collection?
+		list.add(getMyPublicationsCollection());
+
+		PreparedStatement ps = conn
+				.prepareStatement("SELECT fd.id, fd.name FROM Folders fd ORDER BY fd.name");
+
 		ResultSet rs = ps.executeQuery();
 		while (rs.next()) {
 			int id = rs.getInt(1);
@@ -69,26 +76,22 @@ public class MendeleyDAO {
 		}
 		rs.close();
 		ps.close();
-
-		// add Favorites collection (Documents.favourite = 'true')
-		list.add(getFavoritesCollection());
-		// add Needs Review collection?
-		// add My Publications collection?
 		return list;
 	}
 
 	public MCondCollection getFavoritesCollection() {
-		return new MCondCollection("Favorites", "favourite = 'true'");
+		return new MCondCollection("Favorites",
+				"favourite = 'true' AND deletionPending = 'false'");
 	}
 
 	public MCondCollection getNeedsReviewCollection() {
-		// return new MConditionalCollection("Favorites", "favourite = 'true'");
-		throw new UnsupportedOperationException();
+		return new MCondCollection("Needs Review",
+				"confirmed = 'false' AND onlyReference = 'false' AND deletionPending = 'false'");
 	}
 
 	public MCondCollection getMyPublicationsCollection() {
-		// return new MConditionalCollection("Favorites", "favourite = 'true'");
-		throw new UnsupportedOperationException();
+		return new MCondCollection("My Publications",
+				"privacy = 'PublishedDocument' AND deletionPending = 'false'");
 	}
 
 	public MFolder findFolderByName(String name) throws SQLException {
@@ -114,7 +117,8 @@ public class MendeleyDAO {
 						+ "JOIN DocumentFiles dfl ON fl.hash = dfl.hash "
 						+ "JOIN DocumentFolders dfd ON dfl.documentId = dfd.documentId "
 						+ "JOIN Folders fd ON fd.id = dfd.folderId "
-						+ "WHERE fd.id = ?");
+						+ "JOIN Documents doc ON doc.id = dfd.documentId "
+						+ "WHERE fd.id = ? AND deletionPending = 'false'");
 		ps.setInt(1, id);
 		ResultSet rs = ps.executeQuery();
 
@@ -124,18 +128,21 @@ public class MendeleyDAO {
 			String url = rs.getString(2);
 			if (url.isEmpty())
 				continue;
+
+			MFile m = new MFile();
+			m.setHash(hash);
+			m.setLocalUrl(url);
+
 			File f;
 			try {
 				f = new File(new URI(url));
 				if (!f.canRead())
 					continue;
+				m.setName(f.getName());
 			} catch (URISyntaxException e) {
 				log.warning("Can't parse localUrl:" + url);
 				continue;
 			}
-			MFile m = new MFile();
-			m.setHash(hash);
-			m.setLocalUrl(url);
 			list.add(m);
 		}
 		rs.close();
@@ -159,18 +166,21 @@ public class MendeleyDAO {
 			String url = rs.getString(2);
 			if (url.isEmpty())
 				continue;
+
+			MFile m = new MFile();
+			m.setHash(hash);
+			m.setLocalUrl(url);
+
 			File f;
 			try {
 				f = new File(new URI(url));
 				if (!f.canRead())
 					continue;
+				m.setName(f.getName());
 			} catch (URISyntaxException e) {
 				log.warning("Can't parse localUrl:" + url);
 				continue;
 			}
-			MFile m = new MFile();
-			m.setHash(hash);
-			m.setLocalUrl(url);
 			list.add(m);
 		}
 		rs.close();
@@ -190,17 +200,19 @@ public class MendeleyDAO {
 		String url = rs.getString(2);
 		if (url.isEmpty())
 			return null;
+
+		MFile m = new MFile();
+		m.setHash(hash);
+		m.setLocalUrl(url);
+
 		File f;
 		try {
 			f = new File(new URI(url));
 			if (!f.canRead())
 				return null;
+			m.setName(f.getName());
 		} catch (URISyntaxException e) {
 		}
-		MFile m = new MFile();
-		m.setHash(hash);
-		m.setLocalUrl(url);
-
 		rs.close();
 		ps.close();
 		return m;

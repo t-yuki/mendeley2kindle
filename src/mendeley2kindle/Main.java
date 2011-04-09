@@ -18,9 +18,11 @@ import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Properties;
 import java.util.logging.LogManager;
 
 import javax.swing.UIManager;
@@ -35,6 +37,8 @@ public class Main {
 	Mendeley2Kindle core;
 	KindleDAO kindle;
 	MendeleyDAO mendeley;
+	// TODO implement configuration
+	Properties config;
 
 	/**
 	 *
@@ -74,30 +78,32 @@ public class Main {
 		boolean showGui = true;
 		boolean showHelp = false;
 		boolean syncFavourites = false;
+		boolean syncNeedsReview = false;
+		boolean syncMyPublications = false;
+		String kindlePath = null;
+		String mendeleyPath = null;
 		try {
 			LinkedList<String> list = new LinkedList<String>(
 					Arrays.asList(args));
 			while (!list.isEmpty()) {
 				String opt = list.pop();
 				String[] ss = opt.split("=", 2);
-				if ("--sync".equals(ss[0])) {
+				if ("--config".equals(ss[0])) {
+				} else if ("--sync".equals(ss[0])) {
 					collections.add(ss.length == 2 ? ss[1] : list.pop());
-				} else if ("--sync-favourites".equals(opt)) {
+				} else if ("--sync-favourites".equals(opt)
+						|| "--sync-favorites".equals(opt)) {
 					syncFavourites = true;
-				} else if ("--kindle".equals(ss[0])) {
-					try {
-						kindle.open(ss.length == 2 ? ss[1] : list.pop());
-					} catch (Exception e) {
-						showHelp = true;
-						break;
-					}
-				} else if (ss[0].equals("--mendeley")) {
-					try {
-						mendeley.open(ss.length == 2 ? ss[1] : list.pop());
-					} catch (Exception e) {
-						showHelp = true;
-						break;
-					}
+				} else if ("--sync-needsreview".equals(opt)) {
+					syncNeedsReview = true;
+				} else if ("--sync-mypublications".equals(opt)) {
+					syncMyPublications = true;
+				} else if ("--kindle".equals(ss[0])
+						|| "--kindleroot".equals(ss[0])) {
+					kindlePath = ss.length == 2 ? ss[1] : list.pop();
+				} else if (ss[0].equals("--mendeley")
+						|| ss[0].equals("--mendeleydb")) {
+					mendeleyPath = ss.length == 2 ? ss[1] : list.pop();
 				} else if ("--text".equals(opt)) {
 					showGui = false;
 				} else if ("--help".equals(opt) || "-h".equals(opt)) {
@@ -112,6 +118,16 @@ public class Main {
 		} catch (UnsupportedOperationException e) {
 			showHelp = true;
 		}
+
+		try {
+			if (kindlePath != null)
+				kindle.open(kindlePath);
+			if (mendeleyPath != null)
+				mendeley.open(mendeleyPath);
+		} catch (Exception e) {
+			showHelp = true;
+		}
+
 		if ((!collections.isEmpty() || syncFavourites)
 				&& (!kindle.isOpened() || !mendeley.isOpened)) {
 			System.err.println("Kindle path or Mendeley DB is not set");
@@ -120,13 +136,23 @@ public class Main {
 		if (showHelp) {
 			System.err.println("Usage: example:");
 			System.err
-					.println("mendeley2kindle --no-gui --kindle=KINDLE_ROOT --mendeley=MENDELEY_DB --sync=LIBRARY_NAME1 --sync=LIBRARY_NAME2 ...");
+					.println("mendeley2kindle --text --kindleroot=KINDLE_ROOT --mendeleydb=MENDELEY_DB --sync=LIBRARY_NAME1 --sync=LIBRARY_NAME2 ...");
 			System.err.println("Available options:");
-			System.err.println("  --text");
-			System.err.println("  --kindle=KINDLE_ROOT");
-			System.err.println("  --mendeley=MENDELEY_DB");
-			System.err.println("  --sync=LIBRARY_NAME1");
-			System.err.println("  --sync-favorites");
+			System.err.println("  --text : No GUI mode");
+			// System.err
+			// .println("  --config=CONFIG_FILE : Specifies config file [$HOME/.m2k.properties]");
+			System.err
+					.println("  --kindleroot=KINDLE_ROOT : Specifies kindle root path");
+			System.err
+					.println("  --mendeleydb=MENDELEY_DB : Specifies mendeley db path");
+			System.err
+					.println("  --sync=LIBRARY_NAME1 : Do sync target collections");
+			System.err
+					.println("  --sync-favorites : Do sync Favorite collection");
+			System.err
+					.println("  --sync-needsreview : Do sync Needs Review collection");
+			System.err
+					.println("  --sync-mypublications : Do sync My Publications collection");
 			System.err.println("  -h, --help");
 			return;
 		}
@@ -135,6 +161,10 @@ public class Main {
 		List<MCollection> colls = new ArrayList<MCollection>();
 		if (syncFavourites)
 			colls.add(mendeley.getFavoritesCollection());
+		if (syncNeedsReview)
+			colls.add(mendeley.getNeedsReviewCollection());
+		if (syncMyPublications)
+			colls.add(mendeley.getMyPublicationsCollection());
 		for (String name : collections) {
 			try {
 				colls.add(mendeley.findFolderByName(name));
@@ -143,8 +173,10 @@ public class Main {
 				return;
 			}
 		}
-		if (!colls.isEmpty())
+		if (!colls.isEmpty()) {
+			Collections.reverse(colls);
 			core.syncCollections(colls, false, true, false);
+		}
 
 	}
 
@@ -154,8 +186,7 @@ public class Main {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		MainUIFrame ui = new MainUIFrame();
-		ui.setCore(core);
+		MainUIFrame ui = new MainUIFrame(config, core);
 		ui.setKindleDAO(kindle);
 		ui.setMendeleyDAO(mendeley);
 		ui.setVisible(true);
