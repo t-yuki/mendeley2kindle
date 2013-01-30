@@ -1,5 +1,5 @@
 /**
- *         Copyright 2010 Yukinari Toyota <xxseyxx@gmail.com>
+ *         Copyright 2012 Yukinari Toyota <xxseyxx@gmail.com>
  *
  *         Licensed under the Apache License, Version 2.0 (the "License"); you
  *         may not use this file except in compliance with the License. You may
@@ -45,7 +45,6 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
-import javax.swing.ListCellRenderer;
 import javax.swing.ListModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.MouseInputAdapter;
@@ -287,8 +286,7 @@ public class MainUIFrame extends JFrame {
 		}
 	}
 
-	static class MyCellRenderer extends DefaultListCellRenderer implements
-			ListCellRenderer {
+	static class MyCellRenderer extends DefaultListCellRenderer {
 		static private final ImageIcon recentIcon = new ImageIcon(
 				MainUIFrame.class.getResource("clock.png"));
 		static private final ImageIcon favoritesIcon = new ImageIcon(
@@ -353,11 +351,16 @@ public class MainUIFrame extends JFrame {
 		aboutMenuItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				String text = "Mendeley2Kindle 0.3.1\n"
-						+ " by Yukinari Toyota <xxseyxx@gmail.com>\n"
-						+ " http://sites.google.com/site/xxseyxx/\n"
+				String text = "Mendeley2Kindle 0.3.2\n"
+						+ " (c) Copyright Yukinari Toyota, 2013. All rights reserved.\n"
+						+ " Contact: Yukinari Toyota <xxseyxx@gmail.com>\n"
+						+ " Site: http://sites.google.com/site/xxseyxx/\n"
 						+ "Some Icons by Yusuke Kamiyamane\n"
-						+ "http://p.yusukekamiyamane.com/\n";
+						+ " Site: http://p.yusukekamiyamane.com/\n"
+						+ "sqlite-jdbc-3.7.2.jar is provided by xerial.org\n"
+						+ " under Apache License version 2.0 (http://www.apache.org/licenses/ )\n"
+						+ " Site: https://bitbucket.org/xerial/sqlite-jdbc\n"
+						;
 				JOptionPane.showMessageDialog(MainUIFrame.this, text);
 			}
 		});

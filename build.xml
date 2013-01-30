@@ -29,7 +29,7 @@
 			<fileset file=".classpath" />
 			<fileset file="build.properties" />
 			<fileset file="build.xml" />
-			<fileset file="sqlitejdbc-v056.jar" />
+			<fileset file="${lib.sqlitejdbc.jar}" />
 			<fileset dir="src" />
 			<fileset dir="json" />
 		</zip>
